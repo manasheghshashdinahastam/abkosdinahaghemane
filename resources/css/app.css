@@ -332,7 +332,28 @@ button, input, select { font: inherit; }
     .global-toast .p-toast-message-content { padding: 12px 13px; }
 }
 
-/* Solid PrimeVue dialog surfaces and readable modal masks. */
+/* Global PrimeVue Dialog & Overlay Fix */
+.p-dialog,
+.p-dialog .p-dialog-content,
+.p-dialog .p-dialog-header,
+.p-dialog .p-dialog-footer,
+.p-sidebar,
+.p-overlaypanel {
+    background-color: #ffffff !important;
+}
+
+.p-dialog,
+.p-sidebar,
+.p-overlaypanel {
+    padding: 16px !important;
+}
+
+.p-dialog {
+    border-radius: 1.25rem !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid #f1f5f9 !important;
+}
+
 .p-dialog.verification-access-dialog,
 .verification-access-dialog .p-dialog-content,
 .verification-access-dialog .p-dialog-header,
@@ -349,8 +370,50 @@ button, input, select { font: inherit; }
 }
 
 .p-dialog-mask {
-    background-color: rgba(0, 0, 0, .45) !important;
+    background-color: rgba(15, 23, 42, .6) !important;
     backdrop-filter: blur(4px) !important;
+}
+
+.p-dialog.review-dialog,
+.review-dialog .p-dialog-content,
+.review-dialog .p-dialog-header,
+.review-dialog .p-dialog-footer {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+}
+
+.p-dialog.review-dialog {
+    border-radius: 1.5rem !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+    overflow: hidden !important;
+}
+
+.p-dialog.p-component.review-dialog {
+    padding: 16px !important;
+    background-color: #ffffff !important;
+}
+
+.p-dialog.review-dialog .p-dialog-content {
+    padding: 28px 32px 32px !important;
+}
+
+.p-dialog.review-dialog .p-dialog-header {
+    padding: 22px 32px !important;
+}
+
+@media (max-width: 650px) {
+    .p-dialog.p-component.review-dialog {
+        padding: 12px !important;
+    }
+
+    .p-dialog.review-dialog .p-dialog-header {
+        padding: 18px 20px !important;
+    }
+
+    .p-dialog.review-dialog .p-dialog-content {
+        padding: 22px 20px 24px !important;
+    }
 }
 
 .p-dialog.verification-access-dialog {

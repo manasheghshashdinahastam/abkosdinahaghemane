@@ -125,6 +125,24 @@ class UserVerificationReviewTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_admin_kyc_details_return_signed_private_media_urls(): void
+    {
+        [$user, $verification] = $this->submittedVerification();
+        $operator = User::factory()->create();
+        $operator->assignRole('operator');
+        Storage::disk('local')->put($verification->national_card_front_path, 'private-front-image');
+
+        $details = $this->actingAs($operator, 'sanctum')
+            ->getJson('/api/admin/kyc/'.$verification->id)
+            ->assertOk()
+            ->assertJsonStructure(['data' => ['id_card_front_url', 'id_card_back_url', 'residence_doc_url']]);
+
+        $mediaUrl = $details->json('data.id_card_front_url');
+        $this->assertNotEmpty($mediaUrl);
+        $this->get($mediaUrl)->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+        $this->get($mediaUrl.'&signature=invalid')->assertForbidden();
+    }
+
     private function submittedVerification(): array
     {
         $user = User::factory()->create();

@@ -54,7 +54,13 @@ class AdminController extends Controller
                 ->whereIn('status', $pendingStatuses)
                 ->latest()
                 ->take(5)
-                ->get(),
+                ->get()
+                ->map(function (Advertisement $advertisement) {
+                    $data = $advertisement->toArray();
+                    $data['created_at_iso'] = $advertisement->getRawOriginal('created_at');
+                    return $data;
+                })
+                ->values(),
         ];
 
         Log::info('Operator dashboard stats viewed', [

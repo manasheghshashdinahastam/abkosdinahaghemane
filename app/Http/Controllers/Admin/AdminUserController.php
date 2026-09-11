@@ -11,13 +11,25 @@ class AdminUserController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = $request->validate(['search' => ['nullable', 'string', 'max:100']]);
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'role' => ['nullable', 'string', 'max:60'],
+            'verification_status' => ['nullable', 'in:verified,pending,rejected'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
         $users = User::with('roles:id,name')
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")->orWhere('mobile', 'like', "%{$search}%");
             })
+            ->when($filters['role'] ?? null, fn ($query, $role) => $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', $role)))
+            ->when($filters['verification_status'] ?? null, function ($query, $status) {
+                return $status === 'verified'
+                    ? $query->where('is_verified', true)
+                    : $query->where('is_verified', false);
+            })
             ->latest()
-            ->paginate(20);
+            ->paginate($filters['per_page'] ?? 10);
 
         Log::info('Admin users listed', [
             'function' => __METHOD__, 'user_id' => $request->user()->id,

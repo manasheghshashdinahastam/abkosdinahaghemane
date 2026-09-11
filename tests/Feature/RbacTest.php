@@ -93,7 +93,7 @@ class RbacTest extends TestCase
             ->assertOk()
             ->assertJsonPath('pending_ads_count', 1)
             ->assertJsonPath('pending_kyc_count', 1)
-            ->assertJsonStructure(['today_approved_ads', 'today_rejected_ads', 'recent_pending_ads']);
+            ->assertJsonStructure(['today_approved_ads', 'today_rejected_ads', 'recent_pending_ads' => [['created_at_iso']]]);
     }
 
     public function test_operator_can_approve_and_reject_pending_ads_with_reason(): void
@@ -103,11 +103,24 @@ class RbacTest extends TestCase
         $approved = Advertisement::factory()->create(['status' => Advertisement::STATUS_PENDING_APPROVAL]);
         $rejected = Advertisement::factory()->create(['status' => Advertisement::STATUS_PENDING_APPROVAL]);
 
-        $this->actingAs($operator, 'sanctum')->postJson("/api/admin/ads/{$approved->id}/approve")->assertOk();
+        $this->actingAs($operator, 'sanctum')->patchJson("/api/admin/ads/{$approved->id}/approve")->assertOk();
         $this->actingAs($operator, 'sanctum')->postJson("/api/admin/ads/{$rejected->id}/reject", ['rejection_reason' => 'مدرک کافی نیست'])->assertOk();
 
         $this->assertDatabaseHas('advertisements', ['id' => $approved->id, 'status' => Advertisement::STATUS_PUBLISHED]);
         $this->assertDatabaseHas('advertisements', ['id' => $rejected->id, 'status' => Advertisement::STATUS_REJECTED, 'rejection_reason' => 'مدرک کافی نیست']);
+    }
+
+    public function test_operator_can_fetch_a_single_pending_ad_for_direct_review(): void
+    {
+        $operator = User::factory()->create();
+        $operator->assignRole('operator');
+        $advertisement = Advertisement::factory()->create(['status' => Advertisement::STATUS_PENDING_APPROVAL]);
+
+        $this->actingAs($operator, 'sanctum')
+            ->getJson("/api/admin/ads/{$advertisement->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $advertisement->id)
+            ->assertJsonStructure(['data' => ['user', 'bank', 'bank_plan', 'location']]);
     }
 
     public function test_admin_can_search_and_toggle_user_block_status(): void
@@ -118,6 +131,33 @@ class RbacTest extends TestCase
 
         $this->actingAs($admin, 'sanctum')->getJson('/api/admin/users?search=کاربر صف')->assertOk()->assertJsonPath('data.0.id', $target->id);
         $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/users/{$target->id}/status", ['is_banned' => true])->assertOk()->assertJsonPath('data.is_banned', true);
+    }
+
+    public function test_operator_can_approve_and_reject_kyc_from_dedicated_endpoints(): void
+    {
+        $operator = User::factory()->create();
+        $operator->assignRole('operator');
+        $approvedUser = User::factory()->create();
+        $rejectedUser = User::factory()->create();
+        $makeVerification = function (User $user) {
+            return UserVerification::create([
+                'user_id' => $user->id, 'home_phone' => '09121111111', 'postal_address' => 'آدرس تست',
+                'residence_document_path' => 'test/residence.jpg', 'national_code' => '0012345678',
+                'national_card_serial' => 'SERIAL', 'national_card_front_path' => 'test/front.jpg',
+                'national_card_back_path' => 'test/back.jpg', 'birth_certificate_p1_path' => 'test/birth1.jpg',
+                'birth_certificate_p2_path' => 'test/birth2.jpg', 'job_document_path' => 'test/job.jpg',
+                'iban' => 'IR000000000000000000000000', 'status' => UserVerification::STATUS_PENDING,
+            ]);
+        };
+        $approved = $makeVerification($approvedUser);
+        $rejected = $makeVerification($rejectedUser);
+
+        $this->actingAs($operator, 'sanctum')->patchJson("/api/admin/kyc/{$approved->id}/approve")->assertOk();
+        $this->actingAs($operator, 'sanctum')->postJson("/api/admin/kyc/{$rejected->id}/reject", ['rejection_reason' => 'عکس ناخوانا'])->assertOk();
+
+        $this->assertDatabaseHas('user_verifications', ['id' => $approved->id, 'status' => UserVerification::STATUS_APPROVED]);
+        $this->assertDatabaseHas('users', ['id' => $approvedUser->id, 'is_verified' => true]);
+        $this->assertDatabaseHas('user_verifications', ['id' => $rejected->id, 'status' => UserVerification::STATUS_REJECTED, 'rejection_reason' => 'عکس ناخوانا']);
     }
 
     public function test_first_otp_registration_assigns_buyer_and_seller_roles(): void

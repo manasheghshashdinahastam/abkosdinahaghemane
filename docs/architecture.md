@@ -23,6 +23,36 @@
 
 `AdminStore.loadOperatorStats()` یک پاسخ مشترک را برای `OperatorDashboardView` و `AdminLayout` نگه می‌دارد. آیتم‌های `navigation.js` دارای `countKey` هستند؛ لایوت مقادیر `pendingAdsCount` و `pendingKycCount` را به badge قرمز کوچک تبدیل می‌کند و با همان permission filtering، فقط منوهای مجاز نقش فعلی را نمایش می‌دهد. مسیرهای `/admin/dashboard`، `/admin/ads/pending`، `/admin/users` و `/admin/kyc` به viewهای عملیاتی متصل‌اند. هدر لایوت نام کاربر، نقش، اعلان، و خروج تأییدشده را ارائه می‌کند و محتوای اصلی با زمینهٔ `slate-50`، padding responsive و کارت‌های سفید رندر می‌شود.
 
+در `OperatorDashboardView` نام اپراتور در badge مستقل از متن خوش‌آمدگویی render می‌شود تا شکست خط و overlap رخ ندهد. کارت صف سریع و کارت یادداشت‌ها در grid دوازده‌ستونه با نسبت ۸/۴ و `align-items: start` قرار دارند. جدول سریع با header خاکستری، سطرهای hover، badge بانک، مبلغ دوخطی، زمان نسبی و action button قرمز کم‌رنگ برای بازبینی استفاده می‌شود.
+
+برای جلوگیری از تفسیر اشتباه تاریخ جلالی توسط JavaScript، endpoint آمار علاوه بر `created_at` نمایشی، `created_at_iso` را از `getRawOriginal('created_at')` برمی‌گرداند. داشبورد فقط ISO را برای محاسبه زمان نسبی استفاده می‌کند و خروجی‌هایی مانند «۱۰ دقیقه پیش»، «۲ ساعت پیش» یا تاریخ دقیق فارسی را نمایش می‌دهد؛ بنابراین سال‌های نادرستی مانند ۷۸۴ دیگر وارد `new Date()` نمی‌شوند.
+
+### Pending advertisement review workflow
+
+صف `/admin/ads/pending` در `PendingAdsView.vue` یک DataTable کارت‌محور با ستون‌های آگهی‌دهنده و وضعیت هویت، عنوان/بانک/طرح، نوع معامله، مبالغ، موقعیت، زمان ثبت و عملیات فوری دارد. فیلتر جست‌وجو عنوان، کد آگهی و موبایل را پوشش می‌دهد و `bank_id` صف را بر اساس بانک محدود می‌کند. پاسخ API با eager loading روابط `user`, `bank`, `bankPlan`, `location.parent` و pagination سمت سرور برمی‌گردد.
+
+تایید از `PATCH /api/admin/ads/{advertisement}/approve` انجام می‌شود و ابتدا confirm سریع نمایش داده می‌شود؛ موفقیت، وضعیت را به `published` می‌برد و همان ردیف را از state جدول حذف می‌کند. رد از `POST /api/admin/ads/{advertisement}/reject` انجام می‌شود؛ Dialog PrimeVue دلایل متداول را با RadioButton و توضیح تکمیلی Textarea دریافت می‌کند و مقدار ترکیبی را به‌عنوان `rejection_reason` الزامی ارسال می‌کند. جزئیات کامل آگهی در Dialog جداگانه با `pi-eye` قابل بازبینی است. صف خالی پیام «عالی است! هیچ آگهی در انتظار بررسی وجود ندارد.» و آیکون سبز `pi-check-circle` دارد.
+
+### Direct Ad Review Flow
+
+دکمهٔ «بررسی» در جدول پنج آگهی اخیر داشبورد اپراتور، شناسهٔ رکورد را در `router.push({ name: 'admin.ads.pending', query: { reviewId: ad.id } })` قرار می‌دهد. دکمه تا تکمیل navigation با spinner همان ردیف disabled است. `PendingAdsView` پس از دریافت صف، `reviewId` را پیدا می‌کند و Dialog بررسی را خودکار باز می‌کند؛ اگر آگهی در صفحهٔ فعلی pagination نباشد، `GET /api/admin/ads/{advertisement}` جزئیات کامل کاربر، بانک، طرح و موقعیت را می‌خواند.
+
+Dialog مستقیم شامل مشخصات تماس کاربر، توضیحات کامل، نرخ سود، مبلغ تسهیلات، قیمت واگذاری، اقساط و موقعیت است و سه مسیر عملیاتی دارد: `PATCH /api/admin/ads/{advertisement}/approve` برای تایید و انتشار، `POST /api/admin/ads/{advertisement}/reject` برای ثبت علت رد، و بازگشت به صف. اگر رکورد بین کلیک و عملیات تغییر وضعیت داده باشد، پیام خطای مناسب نمایش داده شده و صف با API دوباره همگام می‌شود.
+
+## PrimeVue DataTable guidelines
+
+جدول‌های مدیریت کاربران و صف KYC داخل کارت استاندارد سفید با `border-radius: 16px`, border خاکستری بسیار کم‌رنگ و shadow کوچک قرار می‌گیرند؛ هیچ خط مشکی یا جدول خام HTML استفاده نمی‌شود. DataTable با header خاکستری روشن، متن کوچک و ضخیم، padding سلول متعادل، جداکنندهٔ `gray-100` و hover ملایم `slate-50` تنظیم شده است. محتوای کاربر شامل avatar حرف اول، نام و موبایل monospace است و ایمیل خالی همیشه `-` نمایش داده می‌شود.
+
+نقش‌ها با badgeهای semantic تفکیک می‌شوند: indigo برای مدیران، emerald برای مالی، sky برای اپراتور و gray برای کاربر بازار. وضعیت KYC با badge و آیکون PrimeIcons نمایش داده می‌شود. عملیات فقط دکمه‌های icon-based با tooltip/title دارد تا جدول متراکم و قابل اسکن بماند. toolbar کاربران شامل input group جست‌وجو و Selectهای نقش و وضعیت احراز هویت است.
+
+هر دو جدول pagination سمت سرور Laravel را مصرف می‌کنند و `meta.current_page`, `meta.per_page` و `meta.total` را به PrimeVue `Paginator` می‌دهند؛ footer هم‌زمان بازه‌ای مانند «نمایش ۱۰ کاربر از ۳۵ کاربر» را نشان می‌دهد. KYC در نبود رکورد از empty state با `pi-inbox` و پیام کامل فارسی استفاده می‌کند و refresh button با `pi-refresh` وضعیت loading را نشان می‌دهد. کلاس‌های scoped موجود در viewها معادل tokenهای Tailwind مانند `bg-white`, `border-gray-200/80`, `rounded-2xl`, `shadow-sm`, `text-gray-700` و `hover:bg-slate-50/80` را پیاده می‌کنند تا با پوستهٔ فعلی Vite/PrimeVue سازگار بمانند.
+
+### KYC review modal architecture
+
+`AdminKycView` پروندهٔ انتخاب‌شده را در `selectedKyc` نگه می‌دارد و جزئیات کامل را از `GET /api/admin/kyc/{id}` دریافت می‌کند. Dialog با سطح سفید solid، header شامل نام کاربر، شماره پرونده و وضعیت، و سه تب مستقل ساخته شده است: اطلاعات هویتی، مدارک و تصاویر، و سوابق حساب/آگهی. مدارک از URLهای امن backend با PrimeVue Image preview و لینک download نمایش داده می‌شوند و checklist اعتبارسنجی اپراتور در تب مدارک قرار دارد.
+
+تصمیم‌گیری از footer مودال انجام می‌شود: `PATCH /api/admin/kyc/{id}/approve` پرونده را approved و `User.is_verified` را true می‌کند؛ `POST /api/admin/kyc/{id}/reject` دلیل رد را ذخیره می‌کند تا کاربر بتواند ارسال مجدد انجام دهد. پس از موفقیت، رکورد بدون reload از صف حذف، `meta.total` کم و toast موفقیت نمایش داده می‌شود. خطاهای stale state با پیام فارسی و حفظ صف قابل refresh مدیریت می‌شوند. تاریخ ثبت با `Intl.DateTimeFormat('fa-IR-u-ca-persian')` و زمان نسبی امن نمایش داده می‌شود و شمارندهٔ footer از `meta.total` پاسخ Laravel استفاده می‌کند.
+
 # Project Knowledge Graph
 
 ```mermaid
@@ -387,6 +417,8 @@ erDiagram
 رابطهٔ `User` با `UserVerification` اکنون یک‌به‌چند است و unique قبلی `user_id` با migration چنددرخواستی حذف شده است. قانون چرخهٔ عمر این است: پروندهٔ `approved` یا هر `pending` فعال، ارسال جدید را با خطای ۴۲۲ مسدود می‌کند؛ فقط وقتی آخرین پرونده `rejected` باشد، submit یک رکورد جدید با وضعیت `pending` می‌سازد. `VerificationView` تاریخچه را با PrimeVue DataTable نمایش می‌دهد و عملیات «اصلاح و ارسال مجدد» را فقط برای آخرین ردشده فعال می‌کند.
 
 `User.is_verified` پرچم دسترسی عملیاتی و همتای sync‌شدهٔ وضعیت `UserVerification.status=approved` است. کنترلر review هنگام تایید یا رد، هر دو رکورد را در یک تراکنش به‌روزرسانی می‌کند؛ middleware `EnsureUserIsVerified` مقدار تازهٔ `is_verified` را می‌خواند و با تگ `[Gate:CheckVerification]` نتیجهٔ گیت را لاگ می‌کند. برای جلوگیری از باقی‌ماندن snapshot قدیمی login، router guard پیش از مسیرهای احراز‌شده پروفایل کاربر را از API refresh و در Pinia/localStorage ذخیره می‌کند.
+
+در پنل ادمین، فایل‌های KYC در دیسک خصوصی `local` باقی می‌مانند و هرگز از `public/storage` سرو نمی‌شوند. پاسخ `GET /api/admin/kyc/{verification}` برای سه مدرک اصلی (`id_card_front_url`, `id_card_back_url`, `residence_doc_url`) لینک موقت دو ساعته با `URL::temporarySignedRoute` تولید می‌کند. مسیر `GET /api/admin/kyc/media/{kyc}/{type}` خارج از احراز هویت session، اما پشت middleware `signed`، امضای URL را بررسی کرده و فایل را با `Storage::disk('local')->response($path)` به‌صورت inline به مرورگر می‌دهد؛ نوع مدرک نیز فقط به فیلدهای مجاز مدل نگاشت می‌شود. بنابراین تگ تصویر و لینک دانلود مرورگر بدون Bearer token کار می‌کنند، ولی مسیر خام فایل یا URL بدون امضای معتبر قابل استفاده نیست. `AdminKycView` برای لینک‌های غایب یا خطادار کارت fallback وکتوری نشان می‌دهد و preview PrimeVue را روی URL امضاشده باز می‌کند.
 
 اپراتور یا ادمین دارای مجوز `review-kyc`، صف را از `GET /api/admin/verifications?status=pending` می‌خواند، جزئیات را از `GET /api/admin/verifications/{id}` دریافت می‌کند و مدارک را فقط از مسیر دانلود امن همان API مشاهده می‌کند. نتیجه با `PATCH /api/admin/verifications/{id}/review` ثبت می‌شود: تایید، `User.is_verified` را `true` می‌کند و رد، دلیل رد را ذخیره و دسترسی تاییدشده را غیرفعال نگه می‌دارد.
 

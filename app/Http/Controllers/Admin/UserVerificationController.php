@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserVerificationController extends Controller
@@ -30,7 +31,7 @@ class UserVerificationController extends Controller
 
     public function show(Request $request, UserVerification $verification)
     {
-        $verification->load(['user', 'reviewer:id,name']);
+        $verification->load(['user' => fn ($query) => $query->withCount('advertisements')->with(['city:id,name', 'province:id,name']), 'reviewer:id,name']);
         Log::info('Admin verification details viewed', [
             'function' => __METHOD__, 'user_id' => $request->user()->id,
             'payload' => ['verification_id' => $verification->id], 'trace' => $request->header('X-Request-Id'),
@@ -68,6 +69,17 @@ class UserVerificationController extends Controller
         return response()->json(['data' => $this->safeData($verification->fresh(['user', 'reviewer:id,name']))]);
     }
 
+    public function approve(Request $request, UserVerification $verification)
+    {
+        return $this->review($request->merge(['status' => 'approved']), $verification);
+    }
+
+    public function reject(Request $request, UserVerification $verification)
+    {
+        $request->merge(['status' => 'rejected']);
+        return $this->review($request, $verification);
+    }
+
     public function document(Request $request, UserVerification $verification, string $field): StreamedResponse
     {
         $allowed = [
@@ -93,6 +105,21 @@ class UserVerificationController extends Controller
 
     private function safeData(UserVerification $verification): array
     {
+        $mediaUrl = function (string $field, string $type) use ($verification): ?string {
+            if (!$verification->{$field}) {
+                return null;
+            }
+
+            return URL::temporarySignedRoute(
+                'admin.kyc.media',
+                now()->addHours(2),
+                ['kyc' => $verification->id, 'type' => $type],
+            );
+        };
+        $frontUrl = $mediaUrl('national_card_front_path', 'front');
+        $backUrl = $mediaUrl('national_card_back_path', 'back');
+        $residenceUrl = $mediaUrl('residence_document_path', 'residence');
+
         return [
             'id' => $verification->id,
             'status' => $verification->status,
@@ -106,13 +133,14 @@ class UserVerificationController extends Controller
             'rejection_reason' => $verification->rejection_reason,
             'reviewed_by' => $verification->reviewer,
             'reviewed_at' => $verification->reviewed_at,
+            'created_at' => $verification->created_at,
+            'id_card_front_url' => $frontUrl,
+            'id_card_back_url' => $backUrl,
+            'residence_doc_url' => $residenceUrl,
             'documents' => [
-                'residence' => route('admin.verifications.document', [$verification, 'residence']),
-                'national_card_front' => route('admin.verifications.document', [$verification, 'national-card-front']),
-                'national_card_back' => route('admin.verifications.document', [$verification, 'national-card-back']),
-                'birth_certificate_p1' => route('admin.verifications.document', [$verification, 'birth-certificate-p1']),
-                'birth_certificate_p2' => route('admin.verifications.document', [$verification, 'birth-certificate-p2']),
-                'job' => route('admin.verifications.document', [$verification, 'job']),
+                'residence' => $residenceUrl,
+                'national_card_front' => $frontUrl,
+                'national_card_back' => $backUrl,
             ],
         ];
     }

@@ -51,15 +51,23 @@ Route::middleware('auth:sanctum')->prefix('user')->group(function () {
     Route::get('kyc/{verificationId}/documents/{type}', [ProfileController::class, 'kycDocument'])->name('user.kyc.document');
 });
 
+Route::get('admin/kyc/media/{kyc}/{type}', [AdminKycController::class, 'showMedia'])
+    ->name('admin.kyc.media')
+    ->middleware('signed');
+
 Route::middleware(['auth:sanctum', 'role_or_permission:super_admin|admin|financial_manager|operator|auditor'])
     ->prefix('admin')->group(function () {
     Route::get('me', [AdminController::class, 'me'])->middleware('role.audit');
     Route::get('dashboard', [AdminController::class, 'dashboard'])->middleware('role.audit');
     Route::get('dashboard/operator-stats', [AdminController::class, 'operatorStats'])->middleware(['role.audit', 'permission:ads.view']);
     Route::get('ads/pending', [AdminAdvertisementController::class, 'pending'])->middleware(['role.audit', 'permission:ads.view']);
-    Route::post('ads/{advertisement}/approve', [AdminAdvertisementController::class, 'approve'])->middleware(['role.audit', 'permission:ads.approve']);
+    Route::get('ads/{advertisement}', [AdminAdvertisementController::class, 'show'])->middleware(['role.audit', 'permission:ads.view']);
+    Route::patch('ads/{advertisement}/approve', [AdminAdvertisementController::class, 'approve'])->middleware(['role.audit', 'permission:ads.approve']);
     Route::post('ads/{advertisement}/reject', [AdminAdvertisementController::class, 'reject'])->middleware(['role.audit', 'permission:ads.reject']);
     Route::get('kyc/pending', [AdminKycController::class, 'pending'])->middleware(['role.audit', 'permission:users.verify']);
+    Route::get('kyc/{verification}', [UserVerificationController::class, 'show'])->name('admin.kyc.show')->middleware(['role.audit', 'permission:users.verify']);
+    Route::patch('kyc/{verification}/approve', [UserVerificationController::class, 'approve'])->name('admin.kyc.approve')->middleware(['role.audit', 'permission:users.verify']);
+    Route::post('kyc/{verification}/reject', [UserVerificationController::class, 'reject'])->name('admin.kyc.reject')->middleware(['role.audit', 'permission:users.verify']);
     Route::patch('users/{user}/status', [AdminUserController::class, 'updateStatus'])->middleware(['role.audit', 'permission:users.ban']);
     Route::get('ads', fn () => response()->json(['data' => []]))->middleware(['role.audit', 'permission:ads.view']);
     Route::get('finance', fn () => response()->json(['data' => []]))->middleware(['role.audit', 'permission:finance.view']);
