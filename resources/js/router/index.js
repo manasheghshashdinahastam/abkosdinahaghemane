@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { canAccessAdmin, getStoredUser, isAuthenticated, userRoles } from '../auth/access';
 import HomeView from '../components/HomeView.vue';
 import BaseDashboardLayout from '../layouts/BaseDashboardLayout.vue';
+import AdminLayout from '../layouts/AdminLayout.vue';
 import UserDashboardView from '../views/UserDashboardView.vue';
 import AdminDashboardView from '../views/AdminDashboardView.vue';
 import AdDetailView from '../views/AdDetailView.vue';
@@ -12,8 +13,15 @@ import HistoryView from '../views/HistoryView.vue';
 import VerificationView from '../views/VerificationView.vue';
 import VerificationReviewView from '../views/VerificationReviewView.vue';
 import SettingsView from '../views/SettingsView.vue';
+import ForbiddenView from '../views/ForbiddenView.vue';
+import AdminLoginView from '../views/AdminLoginView.vue';
+import OperatorDashboardView from '../views/OperatorDashboardView.vue';
+import PendingAdsView from '../views/PendingAdsView.vue';
+import AdminUsersView from '../views/AdminUsersView.vue';
+import AdminKycView from '../views/AdminKycView.vue';
 import { createLogger } from '../utils/logger';
 import { useAuthStore } from '../stores/useAuthStore';
+import { useAdminStore } from '../stores/useAdminStore';
 import { getActivePinia } from 'pinia';
 
 const logger = createLogger('AuthGuard');
@@ -22,6 +30,7 @@ const routes = [
     { path: '/', name: 'home', component: HomeView },
     { path: '/advertisements/:id', name: 'advertisement.detail', component: AdDetailView, props: true },
     { path: '/login/user/authentication', redirect: { name: 'user.my-ads' } },
+    { path: '/admin/login', name: 'admin.login', component: AdminLoginView },
     { path: '/user', component: BaseDashboardLayout, meta: { requiresAuth: true, area: 'user' }, children: [
         { path: '', redirect: { name: 'user.my-ads' } },
         { path: 'my-ads', name: 'user.my-ads', component: MyAdsView, meta: { requiresVerification: true } },
@@ -32,10 +41,18 @@ const routes = [
         { path: 'settings', name: 'user.settings', component: SettingsView, meta: { requiresVerification: true } },
     ] },
     { path: '/user/dashboard', redirect: { name: 'user.my-ads' } },
-    { path: '/admin', component: BaseDashboardLayout, meta: { requiresAuth: true, requiresAdmin: true, area: 'admin' }, children: [
-        { path: 'dashboard', name: 'admin.dashboard', component: AdminDashboardView },
-        { path: 'verifications', name: 'admin.verifications', component: VerificationReviewView },
+    { path: '/admin', component: AdminLayout, meta: { requiresAuth: true, requiresAdmin: true, area: 'admin' }, children: [
+        { path: 'dashboard', name: 'admin.dashboard', component: OperatorDashboardView },
+        { path: 'ads', name: 'admin.ads', redirect: { name: 'admin.ads.pending' } },
+        { path: 'ads/pending', name: 'admin.ads.pending', component: PendingAdsView, meta: { permission: 'ads.view' } },
+        { path: 'users', name: 'admin.users', component: AdminUsersView, meta: { permission: 'users.view' } },
+        { path: 'finance', name: 'admin.finance', component: AdminDashboardView, meta: { permission: 'finance.view' } },
+        { path: 'verifications', name: 'admin.verifications', component: VerificationReviewView, meta: { permission: 'users.verify' } },
+        { path: 'kyc', name: 'admin.kyc', component: AdminKycView, meta: { permission: 'users.verify' } },
+        { path: 'settings', name: 'admin.settings', component: AdminDashboardView, meta: { permission: 'settings.manage' } },
+        { path: 'reports', name: 'admin.reports', component: AdminDashboardView, meta: { permission: 'reports.view' } },
     ] },
+    { path: '/403', name: 'forbidden', component: ForbiddenView },
 ];
 
 export const router = createRouter({ history: createWebHistory(), routes });
@@ -58,6 +75,13 @@ router.beforeEach(async (to) => {
     if (to.meta.requiresAdmin && !canAccessAdmin()) {
         logger.warn('checkRole', 'Unauthorized admin navigation redirected', { name: to.name });
         return { name: 'user.my-ads' };
+    }
+    if (to.meta.permission) {
+        const adminStore = useAdminStore();
+        if (!adminStore.loaded) {
+            try { await adminStore.loadProfile(); } catch { return { name: 'forbidden' }; }
+        }
+        if (!adminStore.can(to.meta.permission)) return { name: 'forbidden' };
     }
     if ((to.name === 'user.dashboard' || to.name?.startsWith('user.')) && canAccessAdmin()) {
         logger.info('checkRole', 'Manager redirected to admin dashboard', { path: to.path, roles: userRoles() });

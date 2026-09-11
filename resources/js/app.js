@@ -10,6 +10,7 @@ import { RouterView } from 'vue-router';
 import VerificationAccessDialog from './components/VerificationAccessDialog.vue';
 import 'primeicons/primeicons.css';
 import '../css/app.css';
+import { canDirective } from './directives/can';
 
 const Root = {
 	setup() {
@@ -26,5 +27,6 @@ createApp(Root)
 	.use(createPinia())
 	.use(PrimeVue)
 	.use(ToastService)
+	.directive('can', canDirective)
 	.use(router)
 	.mount('#app');

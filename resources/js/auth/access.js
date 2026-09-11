@@ -1,6 +1,6 @@
 import { createLogger, logException } from '../utils/logger';
 
-export const ADMIN_ROLES = ['super-admin', 'admin', 'operator'];
+export const ADMIN_ROLES = ['super_admin', 'super-admin', 'admin', 'financial_manager', 'operator'];
 const logger = createLogger('AuthAccess');
 
 export function getStoredUser() {
@@ -28,7 +28,7 @@ export function userRoles(user = getStoredUser()) {
     const roles = user.roles || user.role || [];
     const normalizedRoles = (Array.isArray(roles) ? roles : [roles]).map((role) => {
         const roleName = typeof role === 'object' ? role.name : role;
-        const aliases = { 'Super Admin': 'super-admin', Admin: 'admin', Operator: 'operator' };
+        const aliases = { 'Super Admin': 'super_admin', 'super-admin': 'super_admin', Admin: 'admin', 'Financial Manager': 'financial_manager', Operator: 'operator' };
         return aliases[roleName] || roleName;
     });
     logger.info('userRoles', 'User roles normalized', { roleCount: normalizedRoles.length });

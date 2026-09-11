@@ -12,9 +12,39 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    public function adminLogin(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+                'username' => ['nullable', 'string', 'max:255', 'required_without:identifier'],
+                'identifier' => ['nullable', 'string', 'max:255', 'required_without:username'],
+            'password' => ['required', 'string'],
+        ]);
+            $username = $payload['username'] ?? $payload['identifier'];
+            $user = User::where('mobile', $username)
+                ->orWhere('email', $username)
+            ->first();
+        $context = [
+            'function' => __METHOD__, 'user_id' => $user?->id,
+                'payload' => ['username' => $username],
+            'trace' => $request->header('X-Request-Id'),
+        ];
+
+        if (! $user || ! Hash::check($payload['password'], $user->password) || ! $user->hasAnyRole(['super_admin', 'admin', 'financial_manager', 'operator', 'auditor'])) {
+            Log::warning('Admin login rejected', $context);
+            return response()->json(['message' => 'اطلاعات ورود ادمین صحیح نیست.'], 422);
+        }
+
+        $token = $user->createToken('admin')->plainTextToken;
+        $user->load('roles');
+        Log::info('Admin login completed', $context + ['roles' => $user->getRoleNames()->values()->all()]);
+
+        return response()->json(['token' => $token, 'user' => $user]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user('sanctum');

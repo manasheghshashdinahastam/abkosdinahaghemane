@@ -22,6 +22,12 @@ async function request(functionName, method, url, data) {
 }
 
 export const authService = {
+    async adminLogin(username, password) {
+        const data = await request('adminLogin', 'post', '/admin/login', { username, password });
+        if (data.token) localStorage.setItem('auth_token', data.token);
+        if (data.user) localStorage.setItem('auth_user', JSON.stringify(data.user));
+        return data;
+    },
     sendOtp(mobile) {
         return request('sendOtp', 'post', '/auth/send-otp', { mobile });
     },

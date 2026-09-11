@@ -1,3 +1,28 @@
+# Admin Portal Design System
+
+صفحهٔ ورود ادمین در مسیر `/admin/login` یک سطح مستقل Enterprise برای کاربران مدیریتی است. ساختار بصری آن بر پایهٔ پس‌زمینهٔ `slate-950`، grid نورانی بسیار کم‌کنتراست، glow قرمز سازمانی `#A62626` و کارت glass با `backdrop-filter: blur` ساخته شده است؛ کارت در موبایل به‌صورت تک‌ستونه و فشرده، و در دسکتاپ با عرض محدود ۴۳۰ پیکسل نمایش داده می‌شود.
+
+هدر کارت شامل لوگوی مستروام، بج monospace با عنوان `Enterprise Admin Portal`، عنوان سفید پرکنتراست «ورود به پنل مدیریت مستروام» و زیرعنوان سازمانی است. ورودی شناسه با آیکون کاربر و `dir=ltr` شماره موبایل یا ایمیل را می‌پذیرد. ورودی رمز از PrimeVue `Password` با `toggleMask` و آیکون چشم استفاده می‌کند؛ رنگ auto-fill مرورگر با زمینهٔ تیرهٔ کنترل‌شده، border slate و focus ring قرمز هم‌سطح می‌شود. کنترل‌های «مرا به خاطر بسپار» و «فراموشی رمز عبور؟» در یک ردیف RTL قرار دارند و دکمهٔ اصلی gradient قرمز، حالت disabled و spinner هنگام درخواست دارد.
+
+فرم با payload استاندارد `{ username, password }` به `POST /api/admin/login` ارسال می‌شود؛ backend برای سازگاری، `identifier` قدیمی را نیز می‌پذیرد. پس از موفقیت، توکن Sanctum ذخیره، `GET /api/admin/me` برای نقش‌ها و مجوزها فراخوانی و کاربر به `/admin/dashboard` منتقل می‌شود. footer امنیتی با آیکون قفل اعلام می‌کند که فعالیت مدیران لاگ و رصد می‌شود. رفتار submit و loading در `AdminLoginView.test.js` با Vitest پوشش داده شده است.
+
+## Operator dashboard REST architecture
+
+داشبورد اپراتور از دادهٔ mock استفاده نمی‌کند. `GET /api/admin/dashboard/operator-stats` با middlewareهای Sanctum، نقش/مجوز و audit محافظت می‌شود و این داده‌ها را از دیتابیس برمی‌گرداند: تعداد آگهی‌های `pending_approval` یا legacy `pending`، تعداد پرونده‌های KYC با وضعیت `pending`، تعداد آگهی‌های `published` و `rejected` که امروز به‌روزرسانی شده‌اند، و پنج آگهی اخیر همراه `user` و `bank`. کوئری صف با `whereIn` و eager loading اجرا می‌شود تا N+1 ایجاد نشود.
+
+مرزهای REST عملیاتی پنل عبارت‌اند از:
+
+| مسیر | عمل | مجوز | نتیجه |
+| --- | --- | --- | --- |
+| `GET /api/admin/ads/pending` | فهرست صف آگهی | `ads.view` | pagination، جست‌وجوی عنوان/نام کاربر، user و bank |
+| `POST /api/admin/ads/{advertisement}/approve` | تایید آگهی | `ads.approve` | تغییر وضعیت به `published` |
+| `POST /api/admin/ads/{advertisement}/reject` | رد آگهی | `ads.reject` | تغییر وضعیت به `rejected` با `rejection_reason` اجباری |
+| `GET /api/admin/users` | مدیریت کاربران | `users.view` | جست‌وجوی نام/موبایل و نقش‌ها |
+| `PATCH /api/admin/users/{user}/status` | مسدودسازی/آزادسازی | `users.ban` | تغییر `users.is_banned` |
+| `GET /api/admin/kyc/pending` | صف مدارک هویتی | `users.verify` | پرونده‌های pending همراه اطلاعات کاربر |
+
+`AdminStore.loadOperatorStats()` یک پاسخ مشترک را برای `OperatorDashboardView` و `AdminLayout` نگه می‌دارد. آیتم‌های `navigation.js` دارای `countKey` هستند؛ لایوت مقادیر `pendingAdsCount` و `pendingKycCount` را به badge قرمز کوچک تبدیل می‌کند و با همان permission filtering، فقط منوهای مجاز نقش فعلی را نمایش می‌دهد. مسیرهای `/admin/dashboard`، `/admin/ads/pending`، `/admin/users` و `/admin/kyc` به viewهای عملیاتی متصل‌اند. هدر لایوت نام کاربر، نقش، اعلان، و خروج تأییدشده را ارائه می‌کند و محتوای اصلی با زمینهٔ `slate-50`، padding responsive و کارت‌های سفید رندر می‌شود.
+
 # Project Knowledge Graph
 
 ```mermaid
@@ -199,6 +224,53 @@ flowchart LR
     OperatorAPI --> Audit
     Audit --> Spatie[Spatie role middleware]
 ```
+
+    ### Admin panel RBAC matrix
+
+    | نقش | ads.* | finance.* | users.* | settings.manage | reports.view |
+    | --- | --- | --- | --- | --- | --- |
+    | `super_admin` | کامل | کامل | کامل | بله | بله |
+    | `admin` | کامل | خیر | کامل | خیر | بله |
+    | `financial_manager` | خیر | کامل | خیر | خیر | بله |
+    | `operator` | view/approve/reject | خیر | view/verify | خیر | خیر |
+
+    مجوزهای پنل با نام‌های دقیق `ads.view`, `ads.approve`, `ads.reject`, `ads.delete`, `finance.view`, `finance.export`, `finance.settle`, `users.view`, `users.verify`, `users.ban`, `settings.manage` و `reports.view` در `RolesAndPermissionsSeeder` ساخته می‌شوند. `AdminRbacSeeder` چهار کاربر تستی با نقش‌های پنل ایجاد می‌کند؛ پسورد تستی فقط برای محیط توسعه/تست است.
+
+    ### Admin security boundary
+
+    ```mermaid
+    flowchart TD
+        AdminClient[Vue AdminLayout] --> Guard[Vue Router meta.permission]
+        Guard --> AdminStore[Pinia useAdminStore]
+        AdminStore --> Me[GET /api/admin/me]
+        Me --> Sanctum[auth:sanctum]
+        Sanctum --> RolePermission[role_or_permission middleware]
+        RolePermission --> AdminAPI[/api/admin/*]
+        AdminAPI --> Audit[role.audit structured log]
+        AdminAPI --> Spatie[Spatie roles and permissions]
+        AdminStore --> Navigation[navigation.js filter]
+        Navigation --> Can[v-can directive]
+    ```
+
+    مسیرهای `/api/admin/*` ابتدا با Sanctum احراز هویت می‌شوند و سپس به یکی از نقش‌های پنل نیاز دارند؛ endpointهای جزئی‌تر با مجوزهایی مانند `finance.view` و `users.verify` محدود شده‌اند. `GET /api/admin/me` کاربر جاری، نام نقش‌ها و فهرست یکتای مجوزها را برمی‌گرداند. در فرانت، `AdminLayout` منوی مشترک `navigation.js` را با store مجوزها فیلتر می‌کند، guard برای ورود مستقیم به URL، `meta.permission` را بررسی و در صورت شکست به `/403` هدایت می‌کند، و `v-can` کنترل‌های حساس داخل صفحه را غیرفعال می‌سازد.
+
+    ### Admin test accounts and password login
+
+    `AdminUsersSeeder` پس از اجرای `RolesAndPermissionsSeeder` نقش‌های لازم را با `Role::findOrFail` بررسی کرده و حساب‌های زیر را با `updateOrCreate` می‌سازد. رمز مشترک همه حساب‌ها `Admin@123456` است و فقط برای محیط لوکال/تست استفاده می‌شود:
+
+    | نقش | نام | موبایل | ایمیل |
+    | --- | --- | --- | --- |
+    | `super_admin` | علی رادمنش | `09120000001` | `superadmin@mestroam.ir` |
+    | `admin` | سارا رضایی | `09120000002` | `admin@mestroam.ir` |
+    | `financial_manager` | محمد حسینی | `09120000003` | `finance@mestroam.ir` |
+    | `operator` | مهسا مرادی | `09120000004` | `operator@mestroam.ir` |
+    | `auditor` | رضا کمالی | `09120000005` | `auditor@mestroam.ir` |
+
+    فرم ورود در `/admin/login` شماره موبایل یا ایمیل و رمز عبور را می‌پذیرد و به `POST /api/admin/login` متصل است. پاسخ، توکن Sanctum و کاربر را برمی‌گرداند؛ فرانت توکن را ذخیره کرده، `GET /api/admin/me` را برای نقش‌ها/مجوزها فراخوانی می‌کند و سپس به `/admin/dashboard` می‌رود. اجرای مستقیم سیدر:
+
+    ```bash
+    php artisan db:seed --class=AdminUsersSeeder
+    ```
 
 نقش‌ها و مجوزها در `RolesAndPermissionsSeeder` تعریف می‌شوند. `User` از trait رسمی `HasRoles` استفاده می‌کند و با `syncRoles` چند نقش هم‌زمان می‌گیرد. روت‌های admin و operator با `auth:sanctum`، middleware audit و middleware رسمی `role` محافظت می‌شوند و کاربر فاقد نقش پاسخ ۴۰۳ دریافت می‌کند. guard فرانت با فرمت `[AuthGuard:checkRole]` مسیر پنل کاربر یا ادمین را تعیین می‌کند؛ این guard جایگزین مجوز backend نیست.
 

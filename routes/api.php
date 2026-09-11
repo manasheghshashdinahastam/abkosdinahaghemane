@@ -7,6 +7,10 @@ use App\Http\Controllers\BookmarkController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\UserVerificationController;
+use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\AdminAdvertisementController;
+use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AdminKycController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('advertisements', [AdvertisementController::class, 'index']);
@@ -47,12 +51,23 @@ Route::middleware('auth:sanctum')->prefix('user')->group(function () {
     Route::get('kyc/{verificationId}/documents/{type}', [ProfileController::class, 'kycDocument'])->name('user.kyc.document');
 });
 
-Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
-    Route::get('ads', fn () => response()->json(['data' => []]))->middleware(['role.audit', 'role:super-admin|admin|operator']);
-    Route::get('verifications', [UserVerificationController::class, 'index'])->name('admin.verifications.index')->middleware(['role.audit', 'permission:review-kyc']);
-    Route::get('verifications/{verification}', [UserVerificationController::class, 'show'])->name('admin.verifications.show')->middleware(['role.audit', 'permission:review-kyc']);
-    Route::get('verifications/{verification}/documents/{field}', [UserVerificationController::class, 'document'])->name('admin.verifications.document')->middleware(['role.audit', 'permission:review-kyc']);
-    Route::patch('verifications/{verification}/review', [UserVerificationController::class, 'review'])->name('admin.verifications.review')->middleware(['role.audit', 'permission:review-kyc']);
+Route::middleware(['auth:sanctum', 'role_or_permission:super_admin|admin|financial_manager|operator|auditor'])
+    ->prefix('admin')->group(function () {
+    Route::get('me', [AdminController::class, 'me'])->middleware('role.audit');
+    Route::get('dashboard', [AdminController::class, 'dashboard'])->middleware('role.audit');
+    Route::get('dashboard/operator-stats', [AdminController::class, 'operatorStats'])->middleware(['role.audit', 'permission:ads.view']);
+    Route::get('ads/pending', [AdminAdvertisementController::class, 'pending'])->middleware(['role.audit', 'permission:ads.view']);
+    Route::post('ads/{advertisement}/approve', [AdminAdvertisementController::class, 'approve'])->middleware(['role.audit', 'permission:ads.approve']);
+    Route::post('ads/{advertisement}/reject', [AdminAdvertisementController::class, 'reject'])->middleware(['role.audit', 'permission:ads.reject']);
+    Route::get('kyc/pending', [AdminKycController::class, 'pending'])->middleware(['role.audit', 'permission:users.verify']);
+    Route::patch('users/{user}/status', [AdminUserController::class, 'updateStatus'])->middleware(['role.audit', 'permission:users.ban']);
+    Route::get('ads', fn () => response()->json(['data' => []]))->middleware(['role.audit', 'permission:ads.view']);
+    Route::get('finance', fn () => response()->json(['data' => []]))->middleware(['role.audit', 'permission:finance.view']);
+    Route::get('users', [AdminUserController::class, 'index'])->middleware(['role.audit', 'permission:users.view']);
+    Route::get('verifications', [UserVerificationController::class, 'index'])->name('admin.verifications.index')->middleware(['role.audit', 'permission:users.verify']);
+    Route::get('verifications/{verification}', [UserVerificationController::class, 'show'])->name('admin.verifications.show')->middleware(['role.audit', 'permission:users.verify']);
+    Route::get('verifications/{verification}/documents/{field}', [UserVerificationController::class, 'document'])->name('admin.verifications.document')->middleware(['role.audit', 'permission:users.verify']);
+    Route::patch('verifications/{verification}/review', [UserVerificationController::class, 'review'])->name('admin.verifications.review')->middleware(['role.audit', 'permission:users.verify']);
 });
 
 Route::middleware('auth:sanctum')->prefix('operator')->group(function () {
@@ -73,3 +88,5 @@ Route::middleware(['auth:sanctum', 'verified.user'])->prefix('user')->group(func
     Route::post('advertisements/{advertisement}/bookmark', [BookmarkController::class, 'toggleByModel']);
     Route::delete('bookmarks/{advertisementId}', [BookmarkController::class, 'destroy']);
 });
+
+Route::post('admin/login', [AuthController::class, 'adminLogin']);

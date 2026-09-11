@@ -12,6 +12,27 @@ class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
+        $adminPermissions = [
+            'ads.view', 'ads.approve', 'ads.reject', 'ads.delete',
+            'finance.view', 'finance.export', 'finance.settle',
+            'users.view', 'users.verify', 'users.ban',
+            'settings.manage', 'reports.view',
+        ];
+        foreach ($adminPermissions as $permission) {
+            Permission::findOrCreate($permission, 'web');
+        }
+
+        $adminRolePermissions = [
+            'super_admin' => $adminPermissions,
+            'admin' => ['ads.view', 'ads.approve', 'ads.reject', 'ads.delete', 'users.view', 'users.verify', 'users.ban', 'reports.view'],
+            'financial_manager' => ['finance.view', 'finance.export', 'finance.settle', 'reports.view'],
+            'operator' => ['ads.view', 'ads.approve', 'ads.reject', 'users.view', 'users.verify'],
+            'auditor' => ['ads.view', 'finance.view', 'reports.view'],
+        ];
+        foreach ($adminRolePermissions as $roleName => $names) {
+            Role::findOrCreate($roleName, 'web')->syncPermissions($names);
+        }
+
         $permissions = [
             'manage-banks', 'approve-ads', 'reject-ads', 'create-ads',
             'manage-own-ads', 'submit-loan-requests', 'search-ads',
@@ -23,8 +44,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $rolePermissions = [
             'super-admin' => $permissions,
-            'admin' => ['manage-banks', 'view-reports', 'manage-users', 'manage-finance', 'review-kyc'],
-            'operator' => ['approve-ads', 'reject-ads', 'review-kyc'],
+            'admin' => ['manage-banks', 'view-reports', 'manage-users', 'manage-finance', 'review-kyc', 'ads.view', 'ads.approve', 'ads.reject', 'ads.delete', 'users.view', 'users.verify', 'users.ban', 'reports.view'],
+            'operator' => ['approve-ads', 'reject-ads', 'review-kyc', 'ads.view', 'ads.approve', 'ads.reject', 'users.view', 'users.verify'],
+            'auditor' => ['ads.view', 'finance.view', 'reports.view'],
             'seller' => ['create-ads', 'manage-own-ads'],
             'buyer' => ['submit-loan-requests', 'search-ads', 'send-offers'],
         ];

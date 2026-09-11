@@ -70,6 +70,7 @@ class User extends Authenticatable
         'role',
         'password',
         'is_verified',
+        'is_banned',
     ];
 
     /**
@@ -94,6 +95,7 @@ class User extends Authenticatable
             'birth_date' => 'date:Y-m-d',
             'password' => 'hashed',
             'is_verified' => 'boolean',
+            'is_banned' => 'boolean',
             'show_phone_publicly' => 'boolean',
         ];
     }

@@ -2,16 +2,20 @@
 import { onMounted, ref } from 'vue';
 import Skeleton from 'primevue/skeleton';
 import { adService } from '../services';
+import apiClient from '../services/apiClient';
 import { createLogger, logException } from '../utils/logger';
 
 const logger = createLogger('AdminDashboard');
 const ads = ref([]);
 const isLoading = ref(false);
 const errorMessage = ref('');
+const stats = ref({ pending_ads: 0, daily_transactions: 0 });
 
 async function loadAds() {
 	isLoading.value = true;
 	try {
+		const statsResponse = await apiClient.get('/admin/dashboard');
+		stats.value = statsResponse.data?.data || stats.value;
 		const response = await adService.getAll();
 		ads.value = response.data || [];
 		logger.info('onMounted', 'Admin advertisements received', { count: ads.value.length });
@@ -27,4 +31,4 @@ async function loadAds() {
 onMounted(loadAds);
 </script>
 
-<template><section><span class="dashboard-kicker">مدیریت امن</span><h1>داشبورد ادمین</h1><p>صف بررسی آگهی‌ها و شاخص‌های مدیریتی سامانه.</p><Skeleton v-if="isLoading" height="90px" /><p v-else-if="errorMessage" role="alert">{{ errorMessage }}</p><div v-else class="dashboard-stats"><div><strong>{{ ads.filter((ad) => ad.status === 'pending').length }}</strong><span>در انتظار بررسی</span></div><div><strong>{{ ads.length }}</strong><span>آگهی دریافت‌شده</span></div><div><strong>{{ new Set(ads.map((ad) => ad.user_id)).size }}</strong><span>کاربر فعال</span></div></div></section></template>
+<template><section><span class="dashboard-kicker">مدیریت امن</span><h1>داشبورد ادمین</h1><p>شاخص‌های عملیاتی سامانه بر اساس سطح دسترسی شما.</p><Skeleton v-if="isLoading" height="90px" /><p v-else-if="errorMessage" role="alert">{{ errorMessage }}</p><div v-else class="dashboard-stats"><div><strong>{{ stats.pending_ads }}</strong><span>در انتظار بررسی</span></div><div><strong>{{ stats.daily_transactions }}</strong><span>تراکنش‌های امروز</span></div><div><strong>{{ ads.length }}</strong><span>آگهی دریافت‌شده</span></div></div></section></template>

@@ -1,0 +1,2 @@
+<template><section class="forbidden"><i class="pi pi-lock"></i><h1>۴۰۳</h1><p>شما مجوز مشاهده این صفحه را ندارید.</p><RouterLink to="/admin/dashboard">بازگشت به داشبورد</RouterLink></section></template>
+<style scoped>.forbidden { padding: 80px 20px; text-align: center; }.forbidden i { color: #a62626; font-size: 34px; }.forbidden h1 { margin: 12px 0 0; font-size: 42px; }.forbidden p { color: #68747e; }.forbidden a { color: #a62626; text-decoration: none; }</style>
