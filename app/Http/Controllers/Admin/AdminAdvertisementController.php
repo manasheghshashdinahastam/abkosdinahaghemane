@@ -27,18 +27,36 @@ class AdminAdvertisementController extends Controller
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'bank_id' => ['nullable', 'integer', 'exists:banks,id'],
+            'bank' => ['nullable', 'integer', 'exists:banks,id'],
+            'deal_type' => ['nullable', 'in:supply,demand'],
+            'type' => ['nullable', 'in:supply,demand'],
+            'amount_range' => ['nullable', 'in:under_50,50_200,over_200'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
+        $bankId = $filters['bank'] ?? $filters['bank_id'] ?? null;
+        $dealType = $filters['deal_type'] ?? $filters['type'] ?? null;
         $pendingStatuses = [Advertisement::STATUS_PENDING_APPROVAL, 'pending'];
         $ads = Advertisement::with(['user:id,name,mobile,is_verified', 'bank:id,name', 'bankPlan:id,title', 'location:id,name,parent_id', 'location.parent:id,name'])
             ->whereIn('status', $pendingStatuses)
-            ->when($filters['bank_id'] ?? null, fn ($query, $bankId) => $query->where('bank_id', $bankId))
+            ->when($bankId, fn ($query) => $query->where('bank_id', $bankId))
+            ->when($dealType, fn ($query) => $query->where('type', $dealType))
+            ->when($filters['amount_range'] ?? null, function ($query, $range) {
+                return match ($range) {
+                    'under_50' => $query->where('loan_amount', '<', 50_000_000),
+                    '50_200' => $query->whereBetween('loan_amount', [50_000_000, 200_000_000]),
+                    'over_200' => $query->where('loan_amount', '>', 200_000_000),
+                    default => $query,
+                };
+            })
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('title', 'like', "%{$search}%")
-                        ->orWhereKey($search)
                         ->orWhereHas('user', fn ($userQuery) => $userQuery->where('name', 'like', "%{$search}%")->orWhere('mobile', 'like', "%{$search}%"));
+
+                    if (ctype_digit((string) $search)) {
+                        $query->orWhere('id', (int) $search);
+                    }
                 });
             })
             ->latest()

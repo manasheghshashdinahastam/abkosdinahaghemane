@@ -133,6 +133,33 @@ class RbacTest extends TestCase
         $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/users/{$target->id}/status", ['is_banned' => true])->assertOk()->assertJsonPath('data.is_banned', true);
     }
 
+    public function test_admin_can_combine_user_search_role_kyc_and_account_filters(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $target = User::factory()->create([
+            'name' => 'اپراتور فیلترشده', 'email' => 'filtered@example.com',
+            'is_verified' => false, 'is_banned' => true,
+        ]);
+        $target->assignRole('operator');
+        UserVerification::create([
+            'user_id' => $target->id, 'status' => UserVerification::STATUS_REJECTED,
+            'national_code' => '0098765432', 'home_phone' => '09120000000', 'postal_address' => 'آدرس تست',
+            'national_card_serial' => 'FILTER-SERIAL', 'iban' => 'IR000000000000000000000000',
+            'residence_document_path' => 'test/residence.jpg', 'national_card_front_path' => 'test/front.jpg',
+            'national_card_back_path' => 'test/back.jpg', 'birth_certificate_p1_path' => 'test/birth1.jpg',
+            'birth_certificate_p2_path' => 'test/birth2.jpg', 'job_document_path' => 'test/job.jpg',
+        ]);
+        $other = User::factory()->create(['email' => 'other@example.com']);
+        $other->assignRole('operator');
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/users?search=filtered%40example.com&role=operator&kyc_status=rejected&status=banned')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $target->id);
+    }
+
     public function test_operator_can_approve_and_reject_kyc_from_dedicated_endpoints(): void
     {
         $operator = User::factory()->create();

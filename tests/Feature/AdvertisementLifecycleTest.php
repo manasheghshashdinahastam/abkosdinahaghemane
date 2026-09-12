@@ -71,6 +71,34 @@ class AdvertisementLifecycleTest extends TestCase
             ->assertJsonPath('data.status', Advertisement::STATUS_HANDED_OVER);
     }
 
+    public function test_operator_can_filter_pending_ads_by_bank_type_amount_and_search(): void
+    {
+        $operator = User::factory()->create();
+        $operator->assignRole('operator');
+        $matchingBank = Bank::factory()->create(['name' => 'بانک رسالت']);
+        $otherBank = Bank::factory()->create(['name' => 'بانک ملی']);
+        $matchingUser = User::factory()->create(['name' => 'کاربر فین‌تک', 'mobile' => '09120000001']);
+
+        Advertisement::factory()->create([
+            'user_id' => $matchingUser->id, 'bank_id' => $matchingBank->id, 'type' => 'demand',
+            'loan_amount' => 120_000_000, 'title' => 'تقاضای خرید امتیاز رسالت', 'status' => Advertisement::STATUS_PENDING_APPROVAL,
+        ]);
+        Advertisement::factory()->create([
+            'bank_id' => $otherBank->id, 'type' => 'demand', 'loan_amount' => 120_000_000,
+            'title' => 'تقاضای دیگر', 'status' => Advertisement::STATUS_PENDING_APPROVAL,
+        ]);
+        Advertisement::factory()->create([
+            'bank_id' => $matchingBank->id, 'type' => 'supply', 'loan_amount' => 120_000_000,
+            'title' => 'واگذاری رسالت', 'status' => Advertisement::STATUS_PENDING_APPROVAL,
+        ]);
+
+        $this->actingAs($operator, 'sanctum')
+            ->getJson('/api/admin/ads/pending?bank='.$matchingBank->id.'&deal_type=demand&amount_range=50_200&search=فین‌تک')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.title', 'تقاضای خرید امتیاز رسالت');
+    }
+
     private function ownedAdvertisement(): array
     {
         $user = User::factory()->create(['is_verified' => true]);

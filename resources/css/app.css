@@ -374,6 +374,62 @@ button, input, select { font: inherit; }
     backdrop-filter: blur(4px) !important;
 }
 
+.pending-filter-panel {
+    overflow: hidden !important;
+    border: 1px solid #f1f5f9 !important;
+    border-radius: 1rem !important;
+    background: #ffffff !important;
+    box-shadow: 0 20px 35px -12px rgba(15, 23, 42, .22) !important;
+}
+
+.pending-filter-panel .p-dropdown-items,
+.pending-filter-panel .p-select-list {
+    padding: 6px !important;
+}
+
+.pending-filter-panel .p-dropdown-item,
+.pending-filter-panel .p-select-option {
+    border-radius: .65rem !important;
+    color: #334155 !important;
+    font-size: 11px !important;
+}
+
+.pending-filter-panel .p-dropdown-item:hover,
+.pending-filter-panel .p-select-option:hover,
+.pending-filter-panel .p-dropdown-item.p-highlight,
+.pending-filter-panel .p-select-option.p-select-option-selected {
+    background: #fff1f2 !important;
+    color: #a62626 !important;
+}
+
+.users-filter-panel {
+    overflow: hidden !important;
+    border: 1px solid #f1f5f9 !important;
+    border-radius: 1rem !important;
+    background: #ffffff !important;
+    box-shadow: 0 20px 35px -12px rgba(15, 23, 42, .22) !important;
+}
+
+.users-filter-panel .p-dropdown-items,
+.users-filter-panel .p-select-list {
+    padding: 6px !important;
+}
+
+.users-filter-panel .p-dropdown-item,
+.users-filter-panel .p-select-option {
+    border-radius: .65rem !important;
+    color: #334155 !important;
+    font-size: 11px !important;
+}
+
+.users-filter-panel .p-dropdown-item:hover,
+.users-filter-panel .p-select-option:hover,
+.users-filter-panel .p-dropdown-item.p-highlight,
+.users-filter-panel .p-select-option.p-select-option-selected {
+    background: #fff1f2 !important;
+    color: #a62626 !important;
+}
+
 .p-dialog.review-dialog,
 .review-dialog .p-dialog-content,
 .review-dialog .p-dialog-header,
