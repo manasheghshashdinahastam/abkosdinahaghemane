@@ -1,26 +1,31 @@
 import axios from 'axios';
 import { createLogger, logException } from '../utils/logger';
 import { showToast } from '../utils/toastBus';
+import { errorMessages } from '../utils/errorMessages';
 
 const logger = createLogger('ApiClient');
 
 function validationMessage(data) {
     const messages = Object.values(data?.errors || {}).flat();
-    return messages[0] || data?.message || 'اطلاعات وارد شده نامعتبر است';
+    return messages[0] || data?.message || errorMessages.validation;
 }
 
 function errorMessage(exception) {
-    if (exception.code === 'ERR_NETWORK' || !exception.response) return 'ارتباط با اینترنت برقرار نیست. لطفاً اتصال خود را بررسی کنید';
+    if (exception.code === 'ERR_NETWORK' || !exception.response) return errorMessages.network;
 
     const status = exception.response.status;
     const data = exception.response.data;
-    if (status === 401) return 'نشست شما منقضی شده است. مجدداً وارد شوید';
-    if (status === 403) return data?.message || 'دسترسی شما به این عملیات محدود است';
+    if (status === 401) return errorMessages.unauthorized;
+    if (status === 403) {
+        if (data?.code === 'ACCOUNT_BANNED') return errorMessages.accountBanned;
+        if (['KYC_REQUIRED', 'USER_UNVERIFIED'].includes(data?.code)) return errorMessages.kycRequired;
+        return errorMessages.forbidden;
+    }
     if (status === 422) return validationMessage(data);
-    if (status === 429) return 'درخواست‌های بیش از حد مجاز. لطفاً کمی صبر کرده و مجدد تلاش کنید';
-    if (status >= 500) return 'خطای سرور. لطفاً بعداً دوباره امتحان کنید';
-    if (status === 404) return 'مورد درخواستی یافت نشد';
-    return 'انجام عملیات با خطا مواجه شد. لطفاً دوباره تلاش کنید';
+    if (status === 429) return errorMessages.rateLimited;
+    if (status >= 500) return errorMessages.serverError;
+    if (status === 404) return errorMessages.notFound;
+    return errorMessages.operationFailed;
 }
 
 export const apiClient = axios.create({

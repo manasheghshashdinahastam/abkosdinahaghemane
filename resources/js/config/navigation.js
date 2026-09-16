@@ -1,6 +1,7 @@
 export const adminNavigation = [
     { label: 'داشبورد', icon: 'pi pi-home', to: { name: 'admin.dashboard' } },
     { label: 'صف بررسی آگهی‌ها', icon: 'pi pi-check-square', to: { name: 'admin.ads.pending' }, requiredPermission: 'ads.view', countKey: 'pendingAdsCount' },
+    { label: 'مدیریت کل آگهی‌ها', icon: 'pi pi-list', to: { name: 'admin.ads.all' }, requiredPermission: 'ads.manage_all' },
     { label: 'کاربران', icon: 'pi pi-users', to: { name: 'admin.users' }, requiredPermission: 'users.view' },
     { label: 'تراکنش‌ها و تسویه‌ها', icon: 'pi pi-wallet', to: { name: 'admin.finance' }, requiredPermission: 'finance.view' },
     { label: 'احراز هویت و مدارک', icon: 'pi pi-id-card', to: { name: 'admin.kyc' }, requiredPermission: 'users.verify', countKey: 'pendingKycCount' },

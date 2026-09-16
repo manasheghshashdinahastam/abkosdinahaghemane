@@ -9,6 +9,112 @@ use Illuminate\Support\Facades\Log;
 
 class AdminAdvertisementController extends Controller
 {
+    private function relations(): array
+    {
+        return ['user:id,name,mobile,email', 'bank:id,name', 'bankPlan:id,title,interest_rate', 'location:id,name,parent_id', 'location.parent:id,name'];
+    }
+
+    public function all(Request $request)
+    {
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'in:pending,pending_approval,published,approved,rejected,expired,handed_over,closed,deleted'],
+            'bank_id' => ['nullable', 'integer', 'exists:banks,id'],
+            'type' => ['nullable', 'in:supply,demand'],
+            'amount_range' => ['nullable', 'in:under_50,50_200,over_200'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+        $status = $filters['status'] ?? null;
+        $query = Advertisement::withTrashed()->with($this->relations());
+        if ($status === 'deleted') {
+            $query->onlyTrashed();
+        } elseif ($status) {
+            $query->where('status', $status);
+        }
+
+        $query->when($filters['bank_id'] ?? null, fn ($builder, $bankId) => $builder->where('bank_id', $bankId))
+            ->when($filters['type'] ?? null, fn ($builder, $type) => $builder->where('type', $type))
+            ->when($filters['amount_range'] ?? null, function ($builder, $range) {
+                return match ($range) {
+                    'under_50' => $builder->where('loan_amount', '<', 50_000_000),
+                    '50_200' => $builder->whereBetween('loan_amount', [50_000_000, 200_000_000]),
+                    'over_200' => $builder->where('loan_amount', '>', 200_000_000),
+                    default => $builder,
+                };
+            })
+            ->when($filters['search'] ?? null, function ($builder, $search) {
+                $builder->where(function ($searchQuery) use ($search) {
+                    $searchQuery->where('title', 'like', "%{$search}%")
+                        ->orWhereHas('user', fn ($userQuery) => $userQuery
+                            ->where('name', 'like', "%{$search}%")
+                            ->orWhere('mobile', 'like', "%{$search}%"));
+                    if (ctype_digit((string) $search)) {
+                        $searchQuery->orWhere('id', (int) $search);
+                    }
+                });
+            });
+
+        $ads = $query->latest()->paginate($filters['per_page'] ?? 10)->withQueryString();
+        Log::info('Admin all advertisements listed', [
+            'function' => __METHOD__, 'user_id' => $request->user()->id,
+            'payload' => $filters, 'trace' => $request->header('X-Request-Id'),
+        ]);
+
+        return response()->json($ads);
+    }
+
+    public function update(Request $request, Advertisement $advertisement)
+    {
+        $payload = $request->validate([
+            'title' => ['sometimes', 'string', 'min:3', 'max:255'],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'type' => ['sometimes', 'in:supply,demand'],
+            'bank_id' => ['sometimes', 'integer', 'exists:banks,id'],
+            'bank_plan_id' => ['nullable', 'integer', 'exists:bank_plans,id'],
+            'loan_amount' => ['sometimes', 'numeric', 'min:0'],
+            'assignment_price' => ['sometimes', 'numeric', 'min:0'],
+            'profit_rate' => ['sometimes', 'numeric', 'min:0', 'max:100'],
+            'installment_count' => ['sometimes', 'integer', 'min:1', 'max:360'],
+        ]);
+        $advertisement->update($payload);
+        Log::info('Admin advertisement updated', [
+            'function' => __METHOD__, 'user_id' => $request->user()->id,
+            'payload' => ['advertisement_id' => $advertisement->id, 'fields' => array_keys($payload)], 'trace' => $request->header('X-Request-Id'),
+        ]);
+
+        return response()->json(['data' => $advertisement->fresh($this->relations())]);
+    }
+
+    public function destroy(Request $request, Advertisement $advertisement)
+    {
+        $advertisement->delete();
+        Log::warning('Admin advertisement soft deleted', [
+            'function' => __METHOD__, 'user_id' => $request->user()->id,
+            'payload' => ['advertisement_id' => $advertisement->id], 'trace' => $request->header('X-Request-Id'),
+        ]);
+
+        return response()->json(['message' => 'آگهی بایگانی شد.', 'id' => $advertisement->id]);
+    }
+
+    public function changeStatus(Request $request, Advertisement $advertisement)
+    {
+        $payload = $request->validate([
+            'status' => ['required', 'in:pending_approval,pending,published,approved,rejected,expired,handed_over,closed'],
+            'rejection_reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $advertisement->update([
+            'status' => $payload['status'],
+            'rejection_reason' => $payload['status'] === Advertisement::STATUS_REJECTED ? ($payload['rejection_reason'] ?? 'رد شده توسط اپراتور') : null,
+        ]);
+        Log::info('Admin advertisement status changed', [
+            'function' => __METHOD__, 'user_id' => $request->user()->id,
+            'payload' => ['advertisement_id' => $advertisement->id, 'status' => $payload['status']], 'trace' => $request->header('X-Request-Id'),
+        ]);
+
+        return response()->json(['data' => $advertisement->fresh($this->relations())]);
+    }
+
     public function show(Request $request, Advertisement $advertisement)
     {
         abort_unless(in_array($advertisement->status, [Advertisement::STATUS_PENDING_APPROVAL, 'pending'], true), 404);

@@ -35,7 +35,7 @@ class AuthController extends Controller
 
         if (! $user || ! Hash::check($payload['password'], $user->password) || ! $user->hasAnyRole(['super_admin', 'admin', 'financial_manager', 'operator', 'auditor'])) {
             Log::warning('Admin login rejected', $context);
-            return response()->json(['message' => 'اطلاعات ورود ادمین صحیح نیست.'], 422);
+            return response()->json(['message' => trans('errors.invalid_credentials')], 422);
         }
 
         $token = $user->createToken('admin')->plainTextToken;

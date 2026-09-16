@@ -10,6 +10,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Exceptions\UnauthorizedException as PermissionUnauthorizedException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -35,21 +37,29 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (ValidationException $exception, Request $request): JsonResponse {
             return response()->json([
-                'message' => 'اطلاعات وارد شده نامعتبر است',
+                'message' => trans('errors.validation_error'),
                 'errors' => $exception->errors(),
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         });
 
         $exceptions->render(function (AuthenticationException $exception, Request $request): JsonResponse {
-            return response()->json(['message' => 'لطفاً ابتدا وارد حساب کاربری خود شوید'], Response::HTTP_UNAUTHORIZED);
+            return response()->json(['message' => trans('errors.unauthorized')], Response::HTTP_UNAUTHORIZED);
         });
 
         $exceptions->render(function (AuthorizationException $exception, Request $request): JsonResponse {
-            return response()->json(['message' => 'شما اجازه دسترسی به این بخش را ندارید'], Response::HTTP_FORBIDDEN);
+            return response()->json(['message' => trans('errors.forbidden')], Response::HTTP_FORBIDDEN);
+        });
+
+        $exceptions->render(function (PermissionUnauthorizedException $exception, Request $request): JsonResponse {
+            return response()->json(['message' => trans('errors.forbidden')], Response::HTTP_FORBIDDEN);
         });
 
         $exceptions->render(function (ModelNotFoundException $exception, Request $request): JsonResponse {
-            return response()->json(['message' => 'مورد درخواستی یافت نشد'], Response::HTTP_NOT_FOUND);
+            return response()->json(['message' => trans('errors.not_found')], Response::HTTP_NOT_FOUND);
+        });
+
+        $exceptions->render(function (NotFoundHttpException $exception, Request $request): JsonResponse {
+            return response()->json(['message' => trans('errors.not_found')], Response::HTTP_NOT_FOUND);
         });
 
         $exceptions->render(function (Throwable $exception, Request $request): ?JsonResponse {
@@ -66,6 +76,6 @@ return Application::configure(basePath: dirname(__DIR__))
                 'exception' => $exception,
             ]);
 
-            return response()->json(['message' => 'خطایی در برقراری ارتباط با سرور رخ داده است. لطفاً لحظاتی دیگر تلاش کنید'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['message' => trans('errors.server_error')], Response::HTTP_INTERNAL_SERVER_ERROR);
         });
     })->create();

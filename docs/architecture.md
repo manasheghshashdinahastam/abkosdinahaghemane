@@ -25,6 +25,12 @@
 
 `AdminUsersView` نوار فیلتر کاربران را به یک toolbar فلت و راست‌چین تبدیل کرده است: `InputText` برای نام/ایمیل/موبایل، `Dropdown` نقش (`role`)، وضعیت KYC (`kyc_status`) و وضعیت دسترسی (`status`) و دکمه‌های پاک‌سازی و اعمال فیلتر. هر تغییر یا submit، `GET /api/admin/users` را با پارامترهای query و pagination سمت سرور فراخوانی می‌کند. `AdminUserController.index` این پارامترها را validate کرده و با `when` روی جست‌وجوی گروه‌بندی‌شده، `whereHas('roles')`، آخرین رابطهٔ `verification` و `is_banned` اعمال می‌کند؛ وضعیت‌های KYC شامل `verified`, `pending`, `rejected` و وضعیت حساب شامل `active`, `banned` است. پنل‌های dropdown که خارج از DOM کامپوننت teleport می‌شوند با `users-filter-panel` به‌صورت سفید، rounded و shadowدار استایل می‌گیرند.
 
+### Comprehensive advertisement management
+
+آیتم «مدیریت کل آگهی‌ها» در `navigation.js` با مسیر `/admin/ads/all` و مجوز `ads.manage_all` برای `super_admin`, `admin` و `operator` ثبت شده است. `AdminAllAdsView` یک DataTable کامل با pagination سمت سرور و toolbar راست‌چین PrimeVue دارد: جست‌وجوی عنوان/کد/موبایل، وضعیت انتشار، بانک عامل، نوع معامله و بازه مبلغ. `GET /api/admin/ads/all` فیلترها را ترکیبی اعمال می‌کند؛ وضعیت `deleted` از `onlyTrashed()` و بقیه وضعیت‌ها از status معمولی استفاده می‌کنند و بازه مبلغ روی `loan_amount` تومانی تعریف شده است.
+
+عملیات جزئیات، ویرایش، تغییر وضعیت و حذف منطقی در صفحه مدیریت جامع در دسترس‌اند. جزئیات شامل مشخصات مالک، بانک، نوع، مبالغ، توضیحات و timestamps وضعیت است. ویرایش با `PUT /api/admin/ads/{id}` فیلدهای پایه، متن و مبالغ را validate و ذخیره می‌کند؛ تغییر وضعیت عمومی با `PATCH /api/admin/ads/{id}/status` وضعیت‌های صف، انتشار، رد، انقضا و واگذاری را با دلیل رد اختیاری پشتیبانی می‌کند؛ `DELETE /api/admin/ads/{id}` با `SoftDeletes` آگهی را از بازار عمومی خارج و عملیات را با context اپراتور در لاگ ثبت می‌کند. permission در `RolesAndPermissionsSeeder` تعریف شده و routeهای جدید زیر `auth:sanctum`, نقش ادمین و permission `ads.manage_all` قرار دارند.
+
 در `OperatorDashboardView` نام اپراتور در badge مستقل از متن خوش‌آمدگویی render می‌شود تا شکست خط و overlap رخ ندهد. کارت صف سریع و کارت یادداشت‌ها در grid دوازده‌ستونه با نسبت ۸/۴ و `align-items: start` قرار دارند. جدول سریع با header خاکستری، سطرهای hover، badge بانک، مبلغ دوخطی، زمان نسبی و action button قرمز کم‌رنگ برای بازبینی استفاده می‌شود.
 
 برای جلوگیری از تفسیر اشتباه تاریخ جلالی توسط JavaScript، endpoint آمار علاوه بر `created_at` نمایشی، `created_at_iso` را از `getRawOriginal('created_at')` برمی‌گرداند. داشبورد فقط ISO را برای محاسبه زمان نسبی استفاده می‌کند و خروجی‌هایی مانند «۱۰ دقیقه پیش»، «۲ ساعت پیش» یا تاریخ دقیق فارسی را نمایش می‌دهد؛ بنابراین سال‌های نادرستی مانند ۷۸۴ دیگر وارد `new Date()` نمی‌شوند.
@@ -568,6 +574,8 @@ The canonical denial response is:
 `EnsureUserIsVerified` is applied at the API boundary, while `router.beforeEach`, `apiClient`, and `VerificationAccessDialog.vue` provide immediate frontend feedback and a one-click route to KYC. The gate reads the current `is_verified` value from the authenticated user; once it becomes true, no cached denial state is retained.
 
 زبان پیش‌فرض Laravel در `config/app.php` روی `fa` و جهت رابط روی `rtl` تنظیم شده است. ترجمه‌های استاندارد اعتبارسنجی و نام فارسی فیلدها در `lang/fa/validation.php` نگه‌داری می‌شوند؛ بنابراین خطاهای `FormRequest` و `Request::validate()` متن خام یا انگلیسی به کاربر برنمی‌گردانند.
+
+تمام پیام‌های سطح سیستم در `lang/fa/errors.php` به‌صورت کلیدمحور متمرکز شده‌اند: `unauthorized`, `forbidden`, `not_found`, `invalid_credentials`, `account_banned`, `validation_error`, `server_error`, `rate_limited`, `network_error` و `operation_failed`. `bootstrap/app.php` این catalog را برای 401، 403، خطای permission پکیج Spatie، 404 مدل/route و 500 استفاده می‌کند؛ خطاهای خامی مانند `User does not have the right permissions` هرگز به API یا کاربر نهایی عبور نمی‌کنند. ورود نامعتبر `AuthController` نیز از `errors.invalid_credentials` استفاده می‌کند. در frontend، `resources/js/utils/errorMessages.js` همان واژگان را برای interceptor مرکزی `apiClient.js` نگه می‌دارد تا پاسخ‌های 401/403/404/422/429/500 و خطاهای شبکه با پیام استاندارد فارسی در Toast سراسری نمایش داده شوند. پیام‌های دارای code مانند `KYC_REQUIRED` و `ACCOUNT_BANNED` قبل از fallback عمومی به پیام تخصصی خود نگاشت می‌شوند.
 
 ```mermaid
 flowchart LR

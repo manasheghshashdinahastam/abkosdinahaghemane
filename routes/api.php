@@ -61,9 +61,13 @@ Route::middleware(['auth:sanctum', 'role_or_permission:super_admin|admin|financi
     Route::get('dashboard', [AdminController::class, 'dashboard'])->middleware('role.audit');
     Route::get('dashboard/operator-stats', [AdminController::class, 'operatorStats'])->middleware(['role.audit', 'permission:ads.view']);
     Route::get('ads/pending', [AdminAdvertisementController::class, 'pending'])->middleware(['role.audit', 'permission:ads.view']);
+    Route::get('ads/all', [AdminAdvertisementController::class, 'all'])->middleware(['role.audit', 'permission:ads.manage_all']);
     Route::get('ads/{advertisement}', [AdminAdvertisementController::class, 'show'])->middleware(['role.audit', 'permission:ads.view']);
+    Route::put('ads/{advertisement}', [AdminAdvertisementController::class, 'update'])->middleware(['role.audit', 'permission:ads.manage_all']);
+    Route::delete('ads/{advertisement}', [AdminAdvertisementController::class, 'destroy'])->middleware(['role.audit', 'permission:ads.manage_all']);
     Route::patch('ads/{advertisement}/approve', [AdminAdvertisementController::class, 'approve'])->middleware(['role.audit', 'permission:ads.approve']);
     Route::post('ads/{advertisement}/reject', [AdminAdvertisementController::class, 'reject'])->middleware(['role.audit', 'permission:ads.reject']);
+    Route::patch('ads/{advertisement}/status', [AdminAdvertisementController::class, 'changeStatus'])->middleware(['role.audit', 'permission:ads.manage_all']);
     Route::get('kyc/pending', [AdminKycController::class, 'pending'])->middleware(['role.audit', 'permission:users.verify']);
     Route::get('kyc/{verification}', [UserVerificationController::class, 'show'])->name('admin.kyc.show')->middleware(['role.audit', 'permission:users.verify']);
     Route::patch('kyc/{verification}/approve', [UserVerificationController::class, 'approve'])->name('admin.kyc.approve')->middleware(['role.audit', 'permission:users.verify']);

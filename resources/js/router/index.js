@@ -17,6 +17,7 @@ import ForbiddenView from '../views/ForbiddenView.vue';
 import AdminLoginView from '../views/AdminLoginView.vue';
 import OperatorDashboardView from '../views/OperatorDashboardView.vue';
 import PendingAdsView from '../views/PendingAdsView.vue';
+import AdminAllAdsView from '../views/AdminAllAdsView.vue';
 import AdminUsersView from '../views/AdminUsersView.vue';
 import AdminKycView from '../views/AdminKycView.vue';
 import { createLogger } from '../utils/logger';
@@ -45,6 +46,7 @@ const routes = [
         { path: 'dashboard', name: 'admin.dashboard', component: OperatorDashboardView },
         { path: 'ads', name: 'admin.ads', redirect: { name: 'admin.ads.pending' } },
         { path: 'ads/pending', name: 'admin.ads.pending', component: PendingAdsView, meta: { permission: 'ads.view' } },
+        { path: 'ads/all', name: 'admin.ads.all', component: AdminAllAdsView, meta: { permission: 'ads.manage_all' } },
         { path: 'users', name: 'admin.users', component: AdminUsersView, meta: { permission: 'users.view' } },
         { path: 'finance', name: 'admin.finance', component: AdminDashboardView, meta: { permission: 'finance.view' } },
         { path: 'verifications', name: 'admin.verifications', component: VerificationReviewView, meta: { permission: 'users.verify' } },

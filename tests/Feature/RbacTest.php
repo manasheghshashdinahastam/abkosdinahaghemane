@@ -123,6 +123,41 @@ class RbacTest extends TestCase
             ->assertJsonStructure(['data' => ['user', 'bank', 'bank_plan', 'location']]);
     }
 
+    public function test_operator_can_manage_all_ads_with_filters_update_and_soft_delete(): void
+    {
+        $operator = User::factory()->create();
+        $operator->assignRole('operator');
+        $advertisement = Advertisement::factory()->create([
+            'status' => Advertisement::STATUS_PUBLISHED,
+            'title' => 'آگهی آرشیوی مدیریت جامع',
+        ]);
+
+        $this->actingAs($operator, 'sanctum')
+            ->getJson('/api/admin/ads/all?search=آرشیوی&status=published')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $advertisement->id);
+
+        $this->actingAs($operator, 'sanctum')
+            ->putJson('/api/admin/ads/'.$advertisement->id, ['title' => 'عنوان اصلاح‌شده آرشیو'])
+            ->assertOk()
+            ->assertJsonPath('data.title', 'عنوان اصلاح‌شده آرشیو');
+
+        $this->actingAs($operator, 'sanctum')
+            ->patchJson('/api/admin/ads/'.$advertisement->id.'/status', ['status' => 'rejected', 'rejection_reason' => 'نیازمند اصلاح'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'rejected');
+
+        $this->actingAs($operator, 'sanctum')
+            ->deleteJson('/api/admin/ads/'.$advertisement->id)
+            ->assertOk();
+
+        $this->assertSoftDeleted('advertisements', ['id' => $advertisement->id]);
+        $this->actingAs($operator, 'sanctum')
+            ->getJson('/api/admin/ads/all?status=deleted')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $advertisement->id);
+    }
+
     public function test_admin_can_search_and_toggle_user_block_status(): void
     {
         $admin = User::factory()->create();

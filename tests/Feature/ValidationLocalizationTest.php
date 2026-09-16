@@ -11,7 +11,7 @@ class ValidationLocalizationTest extends TestCase
         $response = $this->postJson('/api/auth/send-otp', ['mobile' => '123']);
 
         $response->assertUnprocessable()
-            ->assertJsonPath('message', 'اطلاعات وارد شده نامعتبر است')
+            ->assertJsonPath('message', 'اطلاعات وارد شده نامعتبر است. لطفاً موارد را بررسی کنید.')
             ->assertJsonPath('errors.mobile.0', 'قالب شماره موبایل معتبر نیست.');
     }
 }
